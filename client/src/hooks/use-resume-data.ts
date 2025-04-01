@@ -351,6 +351,160 @@ export function useResumeData({ resumeId }: UseResumeDataProps = {}) {
     setAtsScore(Math.min(100, score));
   };
 
+  // Add education
+  const addEducation = async (education: Omit<Education, 'id'>) => {
+    if (!currentResumeId) {
+      // Add locally if no resume ID yet
+      const newEducation = { ...education, id: uuidv4() };
+      setEducation(prevEducation => [...prevEducation, newEducation]);
+      return newEducation;
+    }
+    
+    try {
+      const response = await apiRequest('POST', `/api/resumes/${currentResumeId}/education`, education);
+      const updatedResume: Resume = await response.json();
+      setEducation(updatedResume.education || []);
+      
+      toast({
+        title: 'Success',
+        description: 'Education added successfully',
+      });
+      
+      return updatedResume;
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to add education',
+      });
+      return null;
+    }
+  };
+
+  // Update education
+  const updateEducation = async (id: string, educationItem: Omit<Education, 'id'>) => {
+    if (!currentResumeId) {
+      // Update locally if no resume ID yet
+      const updatedEducation = education.map((edu) => 
+        edu.id === id ? { ...educationItem, id } : edu
+      );
+      setEducation(updatedEducation);
+      return { ...educationItem, id };
+    }
+    
+    try {
+      const response = await apiRequest(
+        'PUT', 
+        `/api/resumes/${currentResumeId}/education/${id}`, 
+        { ...educationItem, id }
+      );
+      const updatedResume: Resume = await response.json();
+      setEducation(updatedResume.education || []);
+      
+      toast({
+        title: 'Success',
+        description: 'Education updated successfully',
+      });
+      
+      return updatedResume;
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update education',
+      });
+      return null;
+    }
+  };
+
+  // Remove education
+  const removeEducation = async (id: string) => {
+    if (!currentResumeId) {
+      // Remove locally if no resume ID yet
+      const filteredEducation = education.filter((edu) => edu.id !== id);
+      setEducation(filteredEducation);
+      return true;
+    }
+    
+    try {
+      const response = await apiRequest(
+        'DELETE', 
+        `/api/resumes/${currentResumeId}/education/${id}`
+      );
+      const updatedResume: Resume = await response.json();
+      setEducation(updatedResume.education || []);
+      
+      toast({
+        title: 'Success',
+        description: 'Education removed successfully',
+      });
+      
+      return true;
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to remove education',
+      });
+      return false;
+    }
+  };
+
+  // Update skills
+  const updateSkills = async (newSkills: string[]) => {
+    setSkills(newSkills);
+    
+    if (!currentResumeId) return newSkills;
+    
+    try {
+      const response = await apiRequest('PUT', `/api/resumes/${currentResumeId}/skills`, { skills: newSkills });
+      const updatedResume: Resume = await response.json();
+      
+      toast({
+        title: 'Success',
+        description: 'Skills updated successfully',
+      });
+      
+      // Recalculate ATS score
+      calculateAtsScore();
+      
+      return updatedResume.skills;
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update skills',
+      });
+      return newSkills;
+    }
+  };
+
+  // Update summary
+  const updateSummary = async (newSummary: string) => {
+    setSummary(newSummary);
+    
+    if (!currentResumeId) return newSummary;
+    
+    try {
+      const response = await apiRequest('PUT', `/api/resumes/${currentResumeId}/summary`, { summary: newSummary });
+      const updatedResume: Resume = await response.json();
+      
+      toast({
+        title: 'Success',
+        description: 'Summary updated successfully',
+      });
+      
+      return updatedResume.summary;
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update summary',
+      });
+      return newSummary;
+    }
+  };
+
   return {
     basicInfo,
     experiences,
@@ -378,6 +532,11 @@ export function useResumeData({ resumeId }: UseResumeDataProps = {}) {
     updateExperience,
     removeExperience,
     updateBasicInfo,
+    addEducation,
+    updateEducation,
+    removeEducation,
+    updateSkills,
+    updateSummary,
     analyzeJobDescription,
   };
 }

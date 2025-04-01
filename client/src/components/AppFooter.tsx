@@ -7,9 +7,9 @@ export default function AppFooter() {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <Link href="/">
-              <h3 className="text-lg font-semibold text-primary mb-2 cursor-pointer">
+              <span className="text-lg font-semibold text-primary mb-2 cursor-pointer block">
                 ATS Resume Builder
-              </h3>
+              </span>
             </Link>
             <p className="text-gray-600 text-sm">
               Create professional, ATS-optimized resumes that get you noticed
@@ -21,17 +21,17 @@ export default function AppFooter() {
               <ul className="text-sm text-gray-600 space-y-1">
                 <li>
                   <Link href="#">
-                    <a className="hover:text-primary">Help Center</a>
+                    <span className="hover:text-primary cursor-pointer">Help Center</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="#">
-                    <a className="hover:text-primary">Contact Us</a>
+                    <span className="hover:text-primary cursor-pointer">Contact Us</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="#">
-                    <a className="hover:text-primary">Privacy Policy</a>
+                    <span className="hover:text-primary cursor-pointer">Privacy Policy</span>
                   </Link>
                 </li>
               </ul>
@@ -41,17 +41,17 @@ export default function AppFooter() {
               <ul className="text-sm text-gray-600 space-y-1">
                 <li>
                   <Link href="#">
-                    <a className="hover:text-primary">Resume Tips</a>
+                    <span className="hover:text-primary cursor-pointer">Resume Tips</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="#">
-                    <a className="hover:text-primary">ATS Guide</a>
+                    <span className="hover:text-primary cursor-pointer">ATS Guide</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="#">
-                    <a className="hover:text-primary">Templates</a>
+                    <span className="hover:text-primary cursor-pointer">Templates</span>
                   </Link>
                 </li>
               </ul>

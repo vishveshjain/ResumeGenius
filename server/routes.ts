@@ -8,7 +8,9 @@ import {
   experienceSchema,
   educationSchema,
   basicInfoSchema,
-  insertJobDescriptionSchema
+  insertJobDescriptionSchema,
+  Experience,
+  Education
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -99,7 +101,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const experienceData = experienceSchema.parse(req.body);
-      const resume = await storage.addExperienceToResume(resumeId, experienceData);
+      // Ensure id is assigned if not provided
+      if (!experienceData.id) {
+        experienceData.id = require('uuid').v4();
+      }
+      const resume = await storage.addExperienceToResume(resumeId, experienceData as Experience);
       if (!resume) {
         return res.status(404).json({ message: 'Resume not found' });
       }
@@ -125,7 +131,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const experienceData = experienceSchema.parse(req.body);
-      const resume = await storage.updateExperienceInResume(resumeId, experienceId, experienceData);
+      // Ensure id is set to match the route parameter
+      experienceData.id = experienceId;
+      const resume = await storage.updateExperienceInResume(resumeId, experienceId, experienceData as Experience);
       if (!resume) {
         return res.status(404).json({ message: 'Resume or experience not found' });
       }
@@ -165,7 +173,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const educationData = educationSchema.parse(req.body);
-      const resume = await storage.addEducationToResume(resumeId, educationData);
+      // Ensure id is assigned if not provided
+      if (!educationData.id) {
+        educationData.id = require('uuid').v4();
+      }
+      const resume = await storage.addEducationToResume(resumeId, educationData as Education);
       if (!resume) {
         return res.status(404).json({ message: 'Resume not found' });
       }
@@ -190,7 +202,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const educationData = educationSchema.parse(req.body);
-      const resume = await storage.updateEducationInResume(resumeId, educationId, educationData);
+      // Ensure id is set to match the route parameter
+      educationData.id = educationId;
+      const resume = await storage.updateEducationInResume(resumeId, educationId, educationData as Education);
       if (!resume) {
         return res.status(404).json({ message: 'Resume or education not found' });
       }

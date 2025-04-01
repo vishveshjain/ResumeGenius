@@ -1,49 +1,50 @@
-import { Experience, Resume } from '@shared/schema';
+import { Resume, Experience } from '@shared/schema';
+import { v4 as uuidv4 } from 'uuid';
 
-// Analyzes a resume against job description keywords
 export function analyzeResumeAgainstKeywords(resume: Partial<Resume>, keywords: string[]): {
   score: number;
-  missingKeywords: string[];
-  presentKeywords: string[];
+  matchedKeywords: string[];
+  missedKeywords: string[];
 } {
-  if (!keywords.length) {
-    return { score: 0, missingKeywords: [], presentKeywords: [] };
-  }
-
-  // Get all text content from resume
-  const allResumeContent = getResumeContent(resume);
+  // Extract all content from the resume
+  const resumeContent = getResumeContent(resume);
   
-  // Check which keywords are present in the resume
-  const presentKeywords: string[] = [];
-  const missingKeywords: string[] = [];
+  // Calculate matches
+  const matchedKeywords: string[] = [];
+  const missedKeywords: string[] = [];
   
+  // Check each keyword
   keywords.forEach(keyword => {
-    if (allResumeContent.toLowerCase().includes(keyword.toLowerCase())) {
-      presentKeywords.push(keyword);
+    if (resumeContent.toLowerCase().includes(keyword.toLowerCase())) {
+      matchedKeywords.push(keyword);
     } else {
-      missingKeywords.push(keyword);
+      missedKeywords.push(keyword);
     }
   });
   
-  // Calculate score as percentage of keywords present
-  const score = Math.round((presentKeywords.length / keywords.length) * 100);
+  // Calculate score as a percentage of matched keywords
+  const score = keywords.length > 0 
+    ? Math.round((matchedKeywords.length / keywords.length) * 100) 
+    : 0;
   
   return {
     score,
-    missingKeywords,
-    presentKeywords
+    matchedKeywords,
+    missedKeywords
   };
 }
 
-// Extracts all textual content from resume for analysis
 function getResumeContent(resume: Partial<Resume>): string {
   const parts: string[] = [];
   
   // Add basic info
   if (resume.basicInfo) {
-    parts.push(resume.basicInfo.name || '');
-    parts.push(resume.basicInfo.title || '');
-    parts.push(resume.basicInfo.location || '');
+    parts.push(
+      resume.basicInfo.name,
+      resume.basicInfo.title,
+      resume.basicInfo.email,
+      resume.basicInfo.location
+    );
   }
   
   // Add summary
@@ -54,184 +55,158 @@ function getResumeContent(resume: Partial<Resume>): string {
   // Add experiences
   if (resume.experiences) {
     resume.experiences.forEach(exp => {
-      parts.push(exp.companyName || '');
-      parts.push(exp.jobTitle || '');
-      parts.push(exp.description || '');
-      if (exp.keySkills) {
-        parts.push(exp.keySkills.join(' '));
-      }
+      parts.push(
+        exp.companyName,
+        exp.jobTitle,
+        exp.description,
+        ...(exp.keySkills || [])
+      );
     });
   }
   
   // Add education
   if (resume.education) {
     resume.education.forEach(edu => {
-      parts.push(edu.institution || '');
-      parts.push(edu.degree || '');
-      parts.push(edu.fieldOfStudy || '');
-      parts.push(edu.description || '');
+      parts.push(
+        edu.institution,
+        edu.degree,
+        edu.fieldOfStudy || '',
+        edu.description || ''
+      );
     });
   }
   
   // Add skills
   if (resume.skills) {
-    parts.push(resume.skills.join(' '));
+    parts.push(...resume.skills);
   }
   
-  return parts.join(' ');
+  return parts.filter(Boolean).join(' ');
 }
 
-// Generate suggestions for improving resume based on job description
 export function generateResumeSuggestions(resume: Partial<Resume>, keywords: string[]): string[] {
-  const { missingKeywords, presentKeywords, score } = analyzeResumeAgainstKeywords(resume, keywords);
-  
   const suggestions: string[] = [];
+  const analysis = analyzeResumeAgainstKeywords(resume, keywords);
   
-  // Check if basic info is complete
-  if (resume.basicInfo) {
-    const { name, title, email, phone, location } = resume.basicInfo;
-    if (!name || !title || !email || !phone || !location) {
-      suggestions.push('Complete your basic information section for better ATS recognition.');
-    }
-  } else {
-    suggestions.push('Add your basic information to improve your resume.');
+  if (analysis.missedKeywords.length > 0) {
+    suggestions.push(
+      `Consider adding the following keywords to your resume: ${analysis.missedKeywords.join(', ')}.`
+    );
   }
   
-  // Check for summary
-  if (!resume.summary) {
-    suggestions.push('Add a professional summary that includes relevant keywords from the job description.');
+  if (!resume.summary || resume.summary.length < 50) {
+    suggestions.push(
+      'Add a strong professional summary that includes relevant keywords from the job description.'
+    );
   }
   
-  // Check for experiences
+  if (!resume.skills || resume.skills.length < 5) {
+    suggestions.push(
+      'List more relevant skills, especially those mentioned in the job description.'
+    );
+  }
+  
   if (!resume.experiences || resume.experiences.length === 0) {
-    suggestions.push('Add work experiences with measurable achievements.');
+    suggestions.push(
+      'Add work experiences to demonstrate your qualifications for this role.'
+    );
   } else {
-    // Check for quantifiable achievements in experience descriptions
-    const hasQuantifiableAchievements = resume.experiences.some(exp => {
-      const description = exp.description || '';
-      return /\d+%|\d+ percent|increased|decreased|improved|reduced|generated|saved|managed|led|launched/i.test(description);
-    });
+    // Check if experiences include the keywords
+    const experienceContent = resume.experiences
+      .map(exp => `${exp.jobTitle} ${exp.description} ${exp.keySkills?.join(' ')}`)
+      .join(' ')
+      .toLowerCase();
     
-    if (!hasQuantifiableAchievements) {
-      suggestions.push('Include quantifiable achievements in your experience descriptions (e.g., "Increased sales by 25%").');
+    const missingInExperience = analysis.missedKeywords.filter(
+      keyword => !experienceContent.includes(keyword.toLowerCase())
+    );
+    
+    if (missingInExperience.length > 0) {
+      suggestions.push(
+        `Update your work experience descriptions to include these keywords: ${missingInExperience.join(', ')}.`
+      );
     }
-  }
-  
-  // Check for missing keywords
-  if (missingKeywords.length > 0) {
-    suggestions.push(`Include these missing keywords in your resume: ${missingKeywords.slice(0, 5).join(', ')}${missingKeywords.length > 5 ? '...' : ''}`);
-  }
-  
-  // Check for skills section
-  if (!resume.skills || resume.skills.length === 0) {
-    suggestions.push('Add a skills section with relevant technical skills from the job description.');
-  }
-  
-  // Check for education
-  if (!resume.education || resume.education.length === 0) {
-    suggestions.push('Add your educational background to complete your resume.');
-  }
-  
-  // Add general ATS tips if few specific suggestions
-  if (suggestions.length < 3) {
-    suggestions.push('Use standard section headings (e.g., "Experience" not "Where I\'ve Worked").');
-    suggestions.push('Keep formatting simple - avoid tables, headers/footers, and images.');
   }
   
   return suggestions;
 }
 
-// Generate simulated experience based on job description
 export function generateSimulatedExperience(jobTitle: string, keywords: string[]): Experience {
-  // Select a random company name from a list of generic company names
-  const companyNames = [
-    'TechSolutions Inc.',
-    'Innovate Systems',
-    'Global Technologies',
-    'NextGen Solutions',
-    'Digital Dynamics',
-    'Future Innovations',
-    'Strategic Solutions',
-    'Precision Technologies',
-    'Enterprise Systems',
-    'Modern Applications'
-  ];
+  // Sample job titles and descriptions for various roles
+  const jobTemplates: { [key: string]: string[] } = {
+    developer: [
+      "Developed and maintained web applications using %TECH_STACK%.",
+      "Collaborated with cross-functional teams to design and implement new features.",
+      "Improved application performance by %PERCENT% through code optimization.",
+      "Implemented automated testing procedures, increasing code coverage by %PERCENT%.",
+      "Participated in code reviews and provided constructive feedback to team members."
+    ],
+    manager: [
+      "Led a team of %NUMBER% professionals, overseeing project delivery and team performance.",
+      "Implemented %PROCESS% methodologies, improving project delivery times by %PERCENT%.",
+      "Managed relationships with key stakeholders and clients to ensure project success.",
+      "Developed and executed strategic plans aligned with organizational objectives.",
+      "Conducted performance reviews and provided mentorship to team members."
+    ],
+    analyst: [
+      "Analyzed complex data sets using %TECH_STACK% to derive actionable insights.",
+      "Created comprehensive reports and dashboards to track key performance indicators.",
+      "Conducted research and provided recommendations to improve business processes.",
+      "Collaborated with stakeholders to define requirements and develop solutions.",
+      "Implemented data validation procedures to ensure data integrity."
+    ]
+  };
   
-  const companyName = companyNames[Math.floor(Math.random() * companyNames.length)];
+  // Determine the job category
+  let category = 'developer';
+  if (jobTitle.toLowerCase().includes('manager') || jobTitle.toLowerCase().includes('director')) {
+    category = 'manager';
+  } else if (jobTitle.toLowerCase().includes('analyst') || jobTitle.toLowerCase().includes('data')) {
+    category = 'analyst';
+  }
   
-  // Generate dates (1-3 years in the past)
-  const endDate = new Date();
-  const duration = Math.floor(Math.random() * 24) + 12; // 12-36 months
-  const startDate = new Date();
-  startDate.setMonth(endDate.getMonth() - duration);
+  // Generate a description with keywords
+  const description = generateDescriptionWithKeywords(jobTitle, keywords);
   
-  // Format dates as YYYY-MM
-  const formattedStartDate = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-  const formattedEndDate = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
-  
-  // Select relevant keywords for this experience (up to 5)
-  const selectedKeywords = keywords.slice(0, Math.min(5, keywords.length));
-  
-  // Generate a description using the selected keywords
-  const description = generateDescriptionWithKeywords(jobTitle, selectedKeywords);
-  
+  // Create a simulated experience
   return {
-    id: `simulated-${Date.now()}`,
-    companyName,
-    jobTitle,
-    startDate: formattedStartDate,
-    endDate: formattedEndDate,
-    description,
-    keySkills: selectedKeywords,
+    id: uuidv4(),
+    companyName: "Example Corporation",
+    jobTitle: jobTitle,
+    startDate: "2021-01",
+    endDate: "2023-01",
+    isCurrentJob: false,
+    description: description,
+    keySkills: shuffleArray([...keywords]).slice(0, Math.min(5, keywords.length)),
     isSimulated: true
   };
 }
 
-// Helper to generate a realistic-sounding description with keywords
 function generateDescriptionWithKeywords(jobTitle: string, keywords: string[]): string {
-  const achievements = [
-    'Increased team productivity by 20% through implementation of improved workflows',
-    'Reduced system downtime by 30% by implementing proactive monitoring solutions',
-    'Developed and maintained documentation that improved onboarding efficiency by 25%',
-    'Collaborated with cross-functional teams to deliver projects on time and within budget',
-    'Recognized for exceptional problem-solving skills and attention to detail',
-    'Spearheaded initiatives that resulted in significant cost savings',
-    'Mentored junior team members, improving overall team performance',
-    'Identified and resolved critical issues before they impacted business operations'
+  // Base template sentences
+  const templates = [
+    "Implemented %KEYWORD1% solutions to improve business processes.",
+    "Developed %KEYWORD2% strategies resulting in increased efficiency.",
+    "Utilized %KEYWORD3% to analyze and optimize workflows.",
+    "Collaborated with cross-functional teams on %KEYWORD4% initiatives.",
+    "Managed %KEYWORD5% projects from conception to delivery."
   ];
   
-  const selectedAchievements = achievements.slice(0, 3);
-  
-  // Create bullet points incorporating keywords
-  const bulletPoints: string[] = [];
-  
-  // Add keyword-based bullet points
-  keywords.forEach((keyword, index) => {
-    if (index < 3) {
-      bulletPoints.push(`Utilized ${keyword} to improve project outcomes and efficiency`);
-    }
+  // Replace placeholders with actual keywords
+  const filledTemplates = templates.map((template, index) => {
+    const keywordIndex = index % keywords.length;
+    return template.replace(`%KEYWORD${index + 1}%`, keywords[keywordIndex] || "industry-standard");
   });
   
-  // Add remaining keywords in a skills-focused bullet point if any left
-  if (keywords.length > 3) {
-    bulletPoints.push(`Applied expertise in ${keywords.slice(3).join(', ')} to solve complex business challenges`);
-  }
-  
-  // Add some generic achievement bullet points
-  selectedAchievements.forEach(achievement => {
-    bulletPoints.push(achievement);
-  });
-  
-  // Shuffle the bullet points for more natural appearance
-  shuffleArray(bulletPoints);
-  
-  return bulletPoints.slice(0, 5).join('\n\n');
+  // Create a cohesive paragraph
+  return filledTemplates.join(' ');
 }
 
-// Helper function to shuffle an array
 function shuffleArray(array: any[]) {
-  for (let i = array.length - 1; i > 0; i--) {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
+  return newArray;
 }
